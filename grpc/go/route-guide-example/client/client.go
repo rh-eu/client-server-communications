@@ -30,18 +30,23 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/rh-eu/client-server-communications/grpc/go/route-guide-example/pkg/data"
 	pb "github.com/rh-eu/client-server-communications/grpc/go/route-guide-example/pkg/routeguide"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
 
-var (
-	tls                = flag.Bool("tls", false, "Connection uses TLS if true, else plain TCP")
-	caFile             = flag.String("ca_file", "", "The file containing the CA root cert file")
-	serverAddr         = flag.String("server_addr", "localhost:10000", "The server address in the format of host:port")
-	serverHostOverride = flag.String("server_host_override", "x.test.youtube.com", "The server name used to verify the hostname returned by the TLS handshake")
-)
+//var (
+//	tls    = flag.Bool("tls", false, "Connection uses TLS if true, else plain TCP")
+//	caFile = flag.String("ca_file", "", "The file containing the CA root cert file")
+//	serverAddr         = flag.String("server_addr", "localhost:10000", "The server address in the format of host:port")
+//	serverHostOverride = flag.String("server_host_override", "x.test.youtube.com", "The server name used to verify the hostname returned by the TLS handshake")
+//)
+
+type conf struct {
+	TLSCAPath          string
+	ServeAddr          string
+	ServerHostOverride string
+}
 
 // printFeature gets the feature for the given point.
 func printFeature(client pb.RouteGuideClient, point *pb.Point) {
@@ -151,23 +156,35 @@ func randomPoint(r *rand.Rand) *pb.Point {
 }
 
 func main() {
+	// Get config
+	conf := &conf{}
+	flag.StringVar(&conf.TLSCAPath, "ca-path", "./certs/minica.pem", "The path to the PEM-encoded TLS miniCA certificate")
+	flag.StringVar(&conf.ServeAddr, "server_addr", "localhost:10000", "The server address in the format of host:port")
+	flag.StringVar(&conf.ServerHostOverride, "server_host_override", "route-guide-server.fabulous.af", "The server name used to verify the hostname returned by the TLS handshake")
 	flag.Parse()
+
 	var opts []grpc.DialOption
-	if *tls {
-		if *caFile == "" {
-			*caFile = data.Path("x509/ca_cert.pem")
-		}
-		creds, err := credentials.NewClientTLSFromFile(*caFile, *serverHostOverride)
-		if err != nil {
-			log.Fatalf("Failed to create TLS credentials %v", err)
-		}
-		opts = append(opts, grpc.WithTransportCredentials(creds))
-	} else {
-		opts = append(opts, grpc.WithInsecure())
+	//if *tls {
+	//	if *caFile == "" {
+	//		*caFile = data.Path("x509/ca_cert.pem")
+	//	}
+	//	creds, err := credentials.NewClientTLSFromFile(*caFile, *serverHostOverride)
+	//	if err != nil {
+	//		log.Fatalf("Failed to create TLS credentials %v", err)
+	//	}
+	//	opts = append(opts, grpc.WithTransportCredentials(creds))
+	//} else {
+	//	opts = append(opts, grpc.WithInsecure())
+	//}
+
+	creds, err := credentials.NewClientTLSFromFile(conf.TLSCAPath, conf.ServerHostOverride)
+	if err != nil {
+		log.Fatalf("Failed to create TLS credentials %v", err)
 	}
+	opts = append(opts, grpc.WithTransportCredentials(creds))
 
 	opts = append(opts, grpc.WithBlock())
-	conn, err := grpc.Dial(*serverAddr, opts...)
+	conn, err := grpc.Dial(conf.ServeAddr, opts...)
 	if err != nil {
 		log.Fatalf("fail to dial: %v", err)
 	}
