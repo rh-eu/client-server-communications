@@ -17,6 +17,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 	pb "github.com/rh-eu/client-server-communications/grpc/go/route-guide-example/pkg/routeguide"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -232,8 +233,8 @@ func (s *RouteGuideServer) Run() {
 
 	// Get config
 	conf := &conf{}
-	flag.StringVar(&conf.TLSCertPath, "cert-path", "./certs/mifomm.validation.svc/cert.pem", "The path to the PEM-encoded TLS certificate")
-	flag.StringVar(&conf.TLSKeyPath, "key-path", "./certs/mifomm.validation.svc/key.pem", "The path to the unencrypted TLS key")
+	flag.StringVar(&conf.TLSCertPath, "cert-path", "./certs/route-guide-server.fabulous.af/cert.pem", "The path to the PEM-encoded TLS certificate")
+	flag.StringVar(&conf.TLSKeyPath, "key-path", "./certs/route-guide-server.fabulous.af/key.pem", "The path to the unencrypted TLS key")
 	//flag.BoolVar(&conf.HTTPOnly, "http-only", false, "Only listen on unencrypted HTTP (e.g. for proxied environments)")
 	flag.StringVar(&conf.Port, "port", ":8443", "The port to listen on (HTTPS).")
 	//flag.StringVar(&conf.Host, "host", "admissiond.questionable.services", "The hostname for the service")
@@ -249,6 +250,12 @@ func (s *RouteGuideServer) Run() {
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
+
+	creds, err := credentials.NewServerTLSFromFile(conf.TLSCertPath, conf.TLSKeyPath)
+	if err != nil {
+		log.Fatalf("Failed to generate credentials %v", err)
+	}
+	opts = []grpc.ServerOption{grpc.Creds(creds)}
 
 	grpcServer := grpc.NewServer(opts...)
 	pb.RegisterRouteGuideServer(grpcServer, s)
