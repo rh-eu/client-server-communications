@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -16,19 +15,12 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 	pb "github.com/rh-eu/client-server-communications/grpc/go/route-guide-example/pkg/routeguide"
+
+	"github.com/rh-eu/client-server-communications/grpc/go/route-guide-example/pkg/config"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/protobuf/proto"
 )
-
-type conf struct {
-	TLSCertPath     string
-	TLSKeyPath      string
-	HTTPOnly        bool
-	Port            string
-	Host            string
-	JSONfeatureFile string
-}
 
 // Server ...
 type Server struct {
@@ -216,12 +208,9 @@ func serialize(point *pb.Point) string {
 }
 
 // NewServer ...
-//func NewServer() *Server {
 func NewServer() *RouteGuideServer {
-	// Get config
-	conf := &conf{}
-	flag.StringVar(&conf.JSONfeatureFile, "json_db_file", "", "A json file containing a list of features")
-	flag.Parse()
+
+	conf := config.GetJSONFeature()
 
 	s := &RouteGuideServer{routeNotes: make(map[string][]*pb.RouteNote)}
 	s.loadFeatures(conf.JSONfeatureFile)
@@ -231,22 +220,14 @@ func NewServer() *RouteGuideServer {
 // Run ...
 func (s *RouteGuideServer) Run() {
 
-	// Get config
-	conf := &conf{}
-	flag.StringVar(&conf.TLSCertPath, "cert-path", "./certs/route-guide-server.fabulous.af/cert.pem", "The path to the PEM-encoded TLS certificate")
-	flag.StringVar(&conf.TLSKeyPath, "key-path", "./certs/route-guide-server.fabulous.af/key.pem", "The path to the unencrypted TLS key")
-	//flag.BoolVar(&conf.HTTPOnly, "http-only", false, "Only listen on unencrypted HTTP (e.g. for proxied environments)")
-	flag.StringVar(&conf.Port, "port", ":8443", "The port to listen on (HTTPS).")
-	//flag.StringVar(&conf.Host, "host", "admissiond.questionable.services", "The hostname for the service")
-	//flag.StringVar(&conf.JSONfeatureFile, "json_db_file", "", "A json file containing a list of features")
-	flag.Parse()
+	conf := config.GetConfig()
 
 	var opts []grpc.ServerOption
 
 	log.Println("Server is up and running")
 	//log.Fatal(http.ListenAndServe(":8082", k.r))
 
-	lis, err := net.Listen("tcp", ":10000")
+	lis, err := net.Listen("tcp", conf.Port)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
